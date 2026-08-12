@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TimIt</title>
+  <link rel="stylesheet" href="../lib/theme.css">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="app-bar">
+    <div class="brand">
+      <span class="logo"></span>
+      <strong>TimIt</strong>
+      <span class="muted tag">local only</span>
+    </div>
+
+    <div class="tracker-bar">
+      <input type="text" id="description" placeholder="What are you working on?" autocomplete="off">
+      <div id="project-picker" class="picker-host"></div>
+      <span class="timer mono" id="timer">00:00:00</span>
+      <button class="btn primary" id="toggle">Start</button>
+      <button class="btn" id="add-manual" title="Add an entry by hand">+ Manual</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab" data-view="entries">Entries</button>
+    <button class="tab" data-view="reports">Reports</button>
+    <button class="tab" data-view="projects">Projects</button>
+    <button class="tab" data-view="data">Import / Export</button>
+  </nav>
+
+  <main>
+    <section class="view" id="view-entries"></section>
+    <section class="view" id="view-reports"></section>
+    <section class="view" id="view-projects"></section>
+    <section class="view" id="view-data"></section>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast"></div>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

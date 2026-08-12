@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TimIt</title>
+  <link rel="stylesheet" href="../lib/theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo"></span>
+      <strong>TimIt</strong>
+    </div>
+    <button class="btn ghost" id="open-dashboard" title="Open dashboard">Dashboard ↗</button>
+  </header>
+
+  <section class="tracker">
+    <input type="text" id="description" placeholder="What are you working on?" autocomplete="off">
+    <div class="tracker-row">
+      <div id="project-picker" class="grow"></div>
+      <div class="timer mono" id="timer">00:00:00</div>
+      <button class="btn primary start" id="toggle">Start</button>
+    </div>
+  </section>
+
+  <section class="totals">
+    <div><span class="muted">Today</span> <b class="mono" id="total-today">0m</b></div>
+    <div><span class="muted">This week</span> <b class="mono" id="total-week">0m</b></div>
+    <button class="btn ghost" id="add-manual">+ Manual entry</button>
+  </section>
+
+  <section class="recent">
+    <div class="recent-head">
+      <span class="muted">Recent</span>
+      <button class="btn ghost" id="see-all">See all</button>
+    </div>
+    <ul id="recent-list"></ul>
+  </section>
+
+  <div id="modal-root"></div>
+  <div id="toast"></div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
