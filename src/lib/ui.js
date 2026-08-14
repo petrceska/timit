@@ -19,6 +19,102 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+/** Closes whichever bubble is currently on screen — at most one ever is. */
+let openBubble = null;
+
+/**
+ * An ⓘ marker that reveals an explanation on hover, focus or tap.
+ *
+ * The bubble is attached to <body> and positioned with fixed coordinates rather
+ * than nested in the layout, so it can't be clipped by a scrolling table cell or
+ * a narrow popup.
+ *
+ * @param {Array|string} content  text and/or nodes to show
+ * @param {object} opts { label, onClose } accessible name, and a hook the caller
+ *        can use to resume work it held back while the bubble was open
+ */
+export function infoBubble(content, { label = 'What is this?', onClose } = {}) {
+  const marker = el('button', {
+    type: 'button', class: 'info', 'aria-label': label, 'aria-expanded': 'false',
+  }, 'i');
+
+  let bubble = null;
+  let hideTimer = null;
+  let watchdog = null;
+
+  const place = () => {
+    const margin = 8;
+    // Measure at the top-left corner first: a bubble sitting near the right edge
+    // would otherwise be squeezed narrow (and so measured too tall), which throws
+    // off both the centring and the decision to flip above the marker.
+    bubble.style.left = '0px';
+    bubble.style.top = '0px';
+    const box = bubble.getBoundingClientRect();
+    const at = marker.getBoundingClientRect();
+
+    const left = Math.max(margin,
+      Math.min(at.left + at.width / 2 - box.width / 2, innerWidth - box.width - margin));
+    const below = at.bottom + 8;
+    const above = at.top - box.height - 8;
+    let top = below + box.height > innerHeight - margin && above > margin ? above : below;
+    // Whatever happens, keep it inside the window.
+    top = Math.max(margin, Math.min(top, innerHeight - box.height - margin));
+
+    bubble.style.left = `${Math.round(left)}px`;
+    bubble.style.top = `${Math.round(top)}px`;
+    bubble.style.visibility = 'visible';
+  };
+
+  const show = () => {
+    clearTimeout(hideTimer);
+    if (bubble) return;
+    openBubble?.();              // only ever one bubble on screen
+    bubble = el('div', { class: 'info-bubble', role: 'tooltip', style: 'visibility:hidden' },
+      Array.isArray(content) ? content : [content]);
+    bubble.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+    bubble.addEventListener('mouseleave', hideSoon);
+    document.body.append(bubble);
+    marker.setAttribute('aria-expanded', 'true');
+    openBubble = hide;
+    // The bubble lives on <body>, so it would outlive its marker when the view
+    // re-renders underneath it (the projects table redraws on every sync event).
+    watchdog = setInterval(() => { if (!marker.isConnected) hide(); }, 300);
+    place();
+  };
+
+  const hide = () => {
+    clearTimeout(hideTimer);
+    clearInterval(watchdog);
+    watchdog = null;
+    const wasOpen = !!bubble;
+    bubble?.remove();
+    bubble = null;
+    marker.setAttribute('aria-expanded', 'false');
+    if (openBubble === hide) openBubble = null;
+    if (wasOpen) onClose?.();
+  };
+  // A moment's grace so the pointer can travel from the marker into the bubble.
+  const hideSoon = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 180); };
+
+  marker.addEventListener('mouseenter', show);
+  marker.addEventListener('mouseleave', hideSoon);
+  marker.addEventListener('focus', show);
+  marker.addEventListener('blur', hide);
+  marker.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bubble ? hide() : show();
+  });
+  marker.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  window.addEventListener('scroll', hide, true);
+  window.addEventListener('resize', hide);
+  document.addEventListener('mousedown', (e) => {
+    if (bubble && e.target !== marker && !bubble.contains(e.target)) hide();
+  });
+
+  return marker;
+}
+
 let toastTimer;
 export function toast(message) {
   const box = document.getElementById('toast');

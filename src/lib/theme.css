@@ -139,3 +139,23 @@ label { color: var(--muted); font-size: 12px; }
   opacity: 0; pointer-events: none; transition: opacity .18s ease;
 }
 #toast.show { opacity: 1; }
+
+/* ---------- info bubble ---------- */
+.info {
+  width: 15px; height: 15px; flex: none; padding: 0; margin-left: 5px;
+  border-radius: 50%; border: 1px solid var(--muted); background: transparent;
+  color: var(--muted); font-size: 10px; font-weight: 700; font-style: italic;
+  line-height: 1; cursor: help; vertical-align: 1px;
+}
+.info:hover, .info:focus-visible { color: var(--accent); border-color: var(--accent); }
+.info-bubble {
+  position: fixed; z-index: 300; max-width: 320px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 10px 12px;
+  font-size: 12px; line-height: 1.5; font-weight: 400; text-transform: none;
+  letter-spacing: normal; text-align: left; white-space: normal;
+}
+.info-bubble p { margin: 0 0 7px; }
+.info-bubble p:last-child { margin-bottom: 0; }
+.info-bubble b { color: var(--text); }

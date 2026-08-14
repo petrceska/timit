@@ -100,6 +100,11 @@ repo and git carries the timesheet along with the code. Set it up in
 **Create file…** to make it, or **Pick existing file…** to link one that's
 already in the repo.
 
+The ⓘ beside the **File sync** heading — and beside each project's own button —
+explains what the feature does without leaving the table: hover it, focus it with
+the keyboard, or tap it on a touchscreen. The same text heads the setup dialog,
+so there's one description to keep true.
+
 **You can't type the folder path into TimIt** — no extension can. Chromium only
 grants write access to a file the user chose in the browser's own file dialog, so
 the folder is picked there. The name you type is what that dialog opens with, and

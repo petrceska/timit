@@ -186,3 +186,7 @@ code.flag {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
   padding: 3px 8px; font-size: 12px; user-select: all;
 }
+.sync-explainer { font-size: 12px; line-height: 1.5; color: var(--muted); margin-bottom: 14px; }
+.sync-explainer p { margin: 0 0 7px; }
+.sync-explainer p:last-child { margin-bottom: 0; }
+.sync-explainer b { color: var(--text); }

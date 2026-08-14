@@ -1,5 +1,5 @@
 import { Store, PALETTE } from '../../lib/store.js';
-import { el, toast, modal, confirmDialog } from '../../lib/ui.js';
+import { el, toast, modal, confirmDialog, infoBubble } from '../../lib/ui.js';
 import { durationOf, formatHuman, friendlyDate } from '../../lib/time.js';
 import { fsSupported, fsUnavailableReason, FLAG_URL, deleteHandle } from '../../lib/fsdb.js';
 import {
@@ -8,6 +8,7 @@ import {
 
 export function createProjectsView(root, app) {
   let showArchived = false;
+  let deferredRefresh = false;
   const table = el('div');
   const banner = el('div');
 
@@ -29,6 +30,8 @@ export function createProjectsView(root, app) {
     table);
 
   async function refresh() {
+    // Never redraw out from under an open explanation — see syncInfo().
+    if (document.querySelector('.info-bubble')) { deferredRefresh = true; return; }
     const projects = await Store.getProjects();
     const entries = await Store.getEntries();
 
@@ -103,7 +106,7 @@ export function createProjectsView(root, app) {
           el('th', { class: 'num' }, 'Entries'),
           el('th', {}, 'Share'),
           el('th', {}, 'Last used'),
-          el('th', {}, 'File sync'),
+          el('th', {}, 'File sync', syncInfo()),
           el('th', {}, ''))),
         el('tbody', {}, rows))));
 
@@ -120,12 +123,40 @@ export function createProjectsView(root, app) {
 
   /* ---------------------------------------------------------- file sync ---- */
 
+  /** The explanation shown by every file-sync ⓘ marker. */
+  const syncExplainer = () => [
+    el('p', {},
+      el('b', {}, 'Keeps a CSV of this project\'s time on your computer.'),
+      ' Point it at a file inside the project\'s own git repo and the timesheet ' +
+      'travels with the code.'),
+    el('p', {},
+      el('b', {}, 'Written when time changes'),
+      ' — you stop the timer, or edit, add, import or delete an entry. Starting a ' +
+      'timer writes nothing.'),
+    el('p', {},
+      el('b', {}, 'Each row carries its entry id,'),
+      ' so an edit updates that row, a deletion removes it, and rows another ' +
+      'machine added through git are never touched.'),
+    el('p', { class: 'muted' },
+      'Runs while the popup or dashboard is open; Brave asks again for permission ' +
+      'to write the file after a restart.'),
+  ];
+
+  const syncInfo = () => infoBubble(syncExplainer(), {
+    label: 'What does file sync do?',
+    // Redrawing the table replaces the marker and takes the bubble with it, so
+    // any refresh that arrived while it was open runs once it closes.
+    onClose: () => { if (deferredRefresh) { deferredRefresh = false; refresh(); } },
+  });
+
   function syncCell(p) {
     if (!p.sync?.enabled) {
-      return el('button', {
-        class: 'btn ghost small',
-        onclick: () => setupSync(p),
-      }, '＋ Sync to file…');
+      return el('span', { class: 'row' },
+        el('button', {
+          class: 'btn ghost small',
+          onclick: () => setupSync(p),
+        }, '＋ Sync to file…'),
+        syncInfo());
     }
 
     const state = p.sync.lastError
@@ -205,10 +236,8 @@ export function createProjectsView(root, app) {
       const blocked = fsUnavailableReason();
       const content = el('div', {},
         el('h2', {}, `Sync "${project.name}" to a file`),
-        el('p', { class: 'help' },
-          'Every time you stop the timer or change an entry, this project\'s time is ' +
-          'written to a CSV file — put it in the project\'s repo and git carries the ' +
-          'timesheet with the code. Starting a timer writes nothing.'),
+        // Same wording as the ⓘ bubble, so there is one description to maintain.
+        el('div', { class: 'sync-explainer' }, syncExplainer()),
         blocked ? unavailableNotice(blocked) : null,
         el('div', { class: 'field' },
           el('label', {}, 'File name'),
