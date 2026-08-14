@@ -2,6 +2,7 @@ import { Store, DEFAULT_SETTINGS } from '../../lib/store.js';
 import { el, toast, confirmDialog, modal } from '../../lib/ui.js';
 import { toCSV, fromCSV, downloadText, EXPORT_COLUMNS } from '../../lib/csv.js';
 import { formatHuman, dayKey, clockTime } from '../../lib/time.js';
+import { listHandleKeys, deleteHandle } from '../../lib/fsdb.js';
 
 export function createDataView(root, app) {
   const stats = el('p', { class: 'help' });
@@ -99,6 +100,8 @@ export function createDataView(root, app) {
           confirmText: 'Delete everything',
         });
         if (!ok) return;
+        // Drop the file links too — the files themselves are left on disk.
+        for (const key of await listHandleKeys()) await deleteHandle(key);
         await Store.wipe();
         toast('All data deleted');
         app.refreshAll();

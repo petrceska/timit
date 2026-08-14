@@ -34,7 +34,9 @@ export function createEntriesView(root, app) {
       }, '⭳ Export CSV'),
       el('button', {
         class: 'btn primary',
-        onclick: async () => { if (await openEntryEditor(null)) { toast('Entry added'); app.refreshAll(); } },
+        onclick: async () => {
+          if (await openEntryEditor(null)) { toast('Entry added'); app.refreshAll(); }
+        },
       }, '+ Add entry')),
     bulkBar,
     list);
@@ -158,10 +160,26 @@ export function createEntriesView(root, app) {
     }
   }
 
+  async function editEntry(e) {
+    const result = await openEntryEditor(e);
+    if (!result) return;
+    if (result.action === 'deleted') { selected.delete(e.id); toast('Entry deleted'); }
+    else toast('Saved');
+    app.refreshAll();
+  }
+
   function entryRow(e) {
     const p = e.projectId ? projects.get(e.projectId) : null;
     const running = e.end === null;
-    return el('div', { class: 'entry-row' + (running ? ' running' : '') },
+    return el('div', {
+      class: 'entry-row clickable' + (running ? ' running' : ''),
+      title: 'Click to edit',
+      onclick: (ev) => {
+        // The checkbox and the action buttons keep their own behaviour.
+        if (ev.target.closest('button, input, .picker')) return;
+        editEntry(e);
+      },
+    },
       el('input', {
         type: 'checkbox', checked: selected.has(e.id),
         onchange: (ev) => {
@@ -192,7 +210,7 @@ export function createEntriesView(root, app) {
         }, '▶'),
         el('button', {
           class: 'btn icon', title: 'Edit',
-          onclick: async () => { if (await openEntryEditor(e)) { toast('Saved'); app.refreshAll(); } },
+          onclick: () => editEntry(e),
         }, '✎'),
         el('button', {
           class: 'btn icon', title: 'Delete',

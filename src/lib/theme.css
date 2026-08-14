@@ -126,7 +126,9 @@ label { color: var(--muted); font-size: 12px; }
 .field > input, .field > select, .field > .picker { width: 100%; }
 .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .field-row > .field { flex: 1 1 108px; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.btn.danger.armed { background: var(--danger); border-color: var(--danger); color: #fff; }
+.help { color: var(--muted); font-size: 12px; margin: 6px 0 12px; }
 .error { color: var(--danger); font-size: 12px; min-height: 16px; }
 
 /* ---------- toast ---------- */

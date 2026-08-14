@@ -45,6 +45,7 @@ body { width: 380px; background: var(--bg); }
   padding: 7px 6px; border-radius: 8px;
 }
 #recent-list .entry:hover { background: var(--surface); }
+#recent-list .entry.clickable { cursor: pointer; }
 #recent-list .entry .meta { flex: 1; min-width: 0; }
 #recent-list .entry .desc {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -59,3 +60,10 @@ body { width: 380px; background: var(--bg); }
 #recent-list .resume { opacity: 0; }
 #recent-list .entry:hover .resume { opacity: 1; }
 #recent-list .empty { padding: 18px 8px; text-align: center; color: var(--muted); }
+
+.sync-notice {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 7px 12px; font-size: 12px; border: 0; border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, #e8b93b 14%, transparent); color: var(--text);
+}
+.sync-notice:hover { background: color-mix(in srgb, #e8b93b 22%, transparent); }

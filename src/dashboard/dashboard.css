@@ -74,6 +74,7 @@ main { padding: 20px; max-width: 1180px; margin: 0 auto; }
 .entry-row:last-of-type { border-bottom: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); }
 .entry-row:only-of-type { border-radius: var(--radius); }
 .entry-row:hover { background: var(--surface-2); }
+.entry-row.clickable { cursor: pointer; }
 .entry-row .desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry-row .desc.none { color: var(--muted); font-style: italic; }
 .entry-row .proj { display: flex; align-items: center; gap: 6px; width: 190px; color: var(--muted); }
@@ -140,7 +141,6 @@ canvas { width: 100%; display: block; }
 .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 .data-grid > * { min-width: 0; }
 @media (max-width: 860px) { .data-grid { grid-template-columns: 1fr; } }
-.help { color: var(--muted); font-size: 12px; margin: 6px 0 12px; }
 .drop {
   border: 1.5px dashed var(--border); border-radius: var(--radius);
   padding: 18px; text-align: center; color: var(--muted); cursor: pointer;
@@ -152,4 +152,37 @@ pre.preview {
   background: var(--surface-2); border-radius: 8px; padding: 10px;
   max-height: 180px; overflow: auto; font-size: 11px; margin: 10px 0 0;
   white-space: pre-wrap; word-break: break-word;
+}
+
+/* ---------- file sync ---------- */
+.btn.small { padding: 3px 7px; font-size: 12px; }
+.btn.icon.small { padding: 3px 5px; font-size: 12px; }
+.sync-cell { display: flex; flex-direction: column; gap: 2px; min-width: 190px; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--muted); }
+.sync-dot.good { background: var(--success); }
+.sync-dot.warn { background: #e8b93b; }
+.sync-dot.bad { background: var(--danger); }
+.sync-detail { font-size: 11px; color: var(--muted); }
+.sync-detail.warn { color: #e8b93b; }
+.sync-detail.bad { color: var(--danger); }
+.link-btn {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  color: var(--text); text-decoration: underline dotted;
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.link-btn:hover { color: var(--accent); }
+.notice {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  padding: 10px 14px; border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, #e8b93b 45%, var(--border));
+  background: color-mix(in srgb, #e8b93b 12%, transparent);
+}
+
+/* Wide tables scroll inside their card instead of stretching the page. */
+.card:has(> table.grid) { overflow-x: auto; }
+.card > table.grid { min-width: 780px; }
+.notice .help { margin: 4px 0 8px; }
+code.flag {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 8px; font-size: 12px; user-select: all;
 }

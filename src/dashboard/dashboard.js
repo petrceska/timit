@@ -7,6 +7,7 @@ import { createEntriesView } from './views/entries.js';
 import { createReportsView } from './views/reports.js';
 import { createProjectsView } from './views/projects.js';
 import { createDataView } from './views/data.js';
+import { scheduleSync, syncAll } from '../lib/sync.js';
 
 const $ = (sel) => document.querySelector(sel);
 const descInput = $('#description');
@@ -121,8 +122,15 @@ async function refreshAll() {
   views[current].redraw?.();
 }
 
-onDataChanged(() => { if (Date.now() >= mutedUntil) refreshAll(); });
+onDataChanged(() => {
+  // Files are only rewritten for projects whose tracked time actually changed,
+  // so this is a no-op while a timer is merely running.
+  scheduleSync();
+  if (Date.now() >= mutedUntil) refreshAll();
+});
 window.addEventListener('hashchange', () => show(location.hash.slice(1) || 'entries'));
 
 show(location.hash.slice(1) || 'entries');
 refreshTracker();
+// Catch up on anything that changed while no extension page was open.
+syncAll({ interactive: false });

@@ -2,6 +2,7 @@ import { Store, onDataChanged } from '../lib/store.js';
 import { ProjectPicker } from '../lib/picker.js';
 import { openEntryEditor } from '../lib/entry-editor.js';
 import { el, toast } from '../lib/ui.js';
+import { flushSync, syncAll } from '../lib/sync.js';
 import {
   formatClock, formatHuman, durationOf, friendlyDate, clockTime,
   startOfDay, startOfWeek,
@@ -96,7 +97,10 @@ function renderRecent(entries) {
         el('span', { class: 'mono', text: formatHuman(dayTotal) })));
     }
     const project = e.projectId ? projects.get(e.projectId) : null;
-    listEl.append(el('li', { class: 'entry' },
+    listEl.append(el('li', {
+      class: 'entry clickable', title: 'Click to edit',
+      onclick: (ev) => { if (!ev.target.closest('button')) editEntry(e); },
+    },
       el('div', { class: 'meta' },
         el('div', {
           class: 'desc' + (e.description ? '' : ' none'),
@@ -116,6 +120,26 @@ function renderRecent(entries) {
   }
 }
 
+/** Sync only runs while an extension page is open, so say when it's stuck. */
+async function renderSyncNotice() {
+  const notice = $('#sync-notice');
+  const stuck = (await Store.getProjects()).filter((p) => p.sync?.enabled && p.sync.lastError);
+  notice.classList.toggle('hidden', !stuck.length);
+  if (!stuck.length) return;
+  notice.textContent = stuck.length === 1
+    ? `⚠ ${stuck[0].name}: ${stuck[0].sync.lastError.toLowerCase()} — open dashboard`
+    : `⚠ ${stuck.length} project files aren't syncing — open dashboard`;
+  notice.onclick = () => openDashboard('#projects');
+}
+
+async function editEntry(entry) {
+  const result = await openEntryEditor(entry);
+  if (!result) return;
+  toast(result.action === 'deleted' ? 'Entry deleted' : 'Saved');
+  await refresh();
+  await flushSync();
+}
+
 async function resume(entry) {
   await Store.startTimer({ description: entry.description, projectId: entry.projectId });
   descInput.value = entry.description || '';
@@ -132,6 +156,9 @@ toggleBtn.addEventListener('click', async () => {
     toast(stopped ? `Saved ${formatHuman(stopped.end - stopped.start)}` : 'Entry discarded (too short)');
     descInput.value = '';
     picker.setValue(null);
+    // Write the project's file before this popup can be dismissed.
+    await flushSync();
+    await renderSyncNotice();
   } else {
     await Store.startTimer({
       description: descInput.value.trim(),
@@ -150,7 +177,7 @@ descInput.addEventListener('keydown', (e) => {
 
 $('#add-manual').addEventListener('click', async () => {
   const saved = await openEntryEditor(null);
-  if (saved) { toast('Entry added'); await refresh(); }
+  if (saved) { toast('Entry added'); await refresh(); await flushSync(); }
 });
 $('#open-dashboard').addEventListener('click', () => openDashboard());
 $('#see-all').addEventListener('click', () => openDashboard('#entries'));
@@ -158,3 +185,6 @@ $('#see-all').addEventListener('click', () => openDashboard('#entries'));
 onDataChanged(() => { if (Date.now() >= mutedUntil) refresh(); });
 refresh();
 descInput.focus();
+// Catch up on changes made while no extension page was open (e.g. the timer was
+// stopped with the keyboard shortcut), then report anything that stayed stuck.
+syncAll({ interactive: false }).then(renderSyncNotice);
