@@ -29,6 +29,23 @@ function escapeCell(value) {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// Excel, Sheets and LibreOffice execute a cell that starts with one of these,
+// so a description like `=HYPERLINK(...)` would run when someone opens the
+// exported file — or the timesheet a colleague pulled from the repo.
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+/** Makes a text cell inert for spreadsheets, without changing what it says. */
+export function neutralizeFormula(value) {
+  const s = value == null ? '' : String(value);
+  return FORMULA_LEAD.test(s) ? `'${s}` : s;
+}
+
+/** Undoes neutralizeFormula, so our own files round-trip exactly. */
+export function restoreFormula(value) {
+  const s = value == null ? '' : String(value);
+  return s.startsWith("'") && FORMULA_LEAD.test(s.slice(1)) ? s.slice(1) : s;
+}
+
 /** entries -> CSV text. `projects` is a Map(id -> project). */
 export function toCSV(entries, projects, settings = {}) {
   const style = settings.csvDateFormat === 'iso' ? 'iso' : 'clockify';
@@ -38,14 +55,15 @@ export function toCSV(entries, projects, settings = {}) {
     const p = e.projectId ? projects.get(e.projectId) : null;
     const ms = e.end - e.start;
     rows.push([
-      p ? p.name : '',
-      p ? p.client || '' : '',
-      e.description || '',
+      // Free-text columns are the ones a user (or an imported file) controls.
+      neutralizeFormula(p ? p.name : ''),
+      neutralizeFormula(p ? p.client || '' : ''),
+      neutralizeFormula(e.description || ''),
       '',
-      settings.userName || '',
+      neutralizeFormula(settings.userName || ''),
       '',
-      settings.userEmail || '',
-      (e.tags || []).join(', '),
+      neutralizeFormula(settings.userEmail || ''),
+      neutralizeFormula((e.tags || []).join(', ')),
       e.billable ? 'Yes' : 'No',
       fmtDate(e.start, style),
       fmtTime(e.start),
@@ -183,10 +201,11 @@ export function fromCSV(text, settings = {}) {
     }
 
     rows.push({
-      projectName: at(row, idx.project),
-      client: at(row, idx.client),
-      description: at(row, idx.description),
-      tags: at(row, idx.tags).split(',').map((t) => t.trim()).filter(Boolean),
+      projectName: restoreFormula(at(row, idx.project)),
+      client: restoreFormula(at(row, idx.client)),
+      description: restoreFormula(at(row, idx.description)),
+      tags: restoreFormula(at(row, idx.tags))
+        .split(',').map((t) => t.trim()).filter(Boolean),
       billable: /^(yes|true|1)$/i.test(at(row, idx.billable)),
       start,
       end,

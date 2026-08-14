@@ -77,6 +77,13 @@ silently dropped.
 **JSON backup** round-trips everything including project colours and settings —
 use it for real backups, and CSV for talking to other tools.
 
+**Spreadsheet safety.** A cell that begins with `=`, `+`, `-`, `@` or a tab is
+executed as a formula by Excel, Sheets and LibreOffice, so an entry described as
+`=HYPERLINK("http://…")` would run when someone opened the file. TimIt prefixes
+those cells with `'` on the way out and strips it on the way back in, so its own
+round-trips are lossless and a committed timesheet is inert for whoever opens it.
+Text that doesn't start with one of those characters is untouched.
+
 ## Syncing a project to a file (for git)
 
 > **Brave users: turn on file access first.** Brave ships with the File System
@@ -156,6 +163,40 @@ rather than overwrite something that isn't a timesheet.
 Deleting a project, or "Delete all data", only unlinks the files — what's on disk
 stays.
 
+## Tests
+
+No framework, no dependencies — plain Node:
+
+```bash
+node test/merge.test.mjs && node test/injection.test.mjs
+```
+
+- **`merge.test.mjs`** (19) pins the sync decision procedure: what counts as
+  added, updated, removed, adopted or foreign.
+- **`injection.test.mjs`** (24) covers input TimIt doesn't control — typed
+  descriptions, imported CSVs, JSON backups, sync files edited by hand or pulled
+  from git — and asserts none of it can escape the slot it belongs in:
+  - **CSV structure** — a description containing quotes or newlines can't forge
+    an extra row, an extra column, or another entry's id; a tampered file can't
+    delete rows we own; an imported file can't choose entry ids.
+  - **Spreadsheet formulas** — formula-leading cells are neutralised in exports
+    and in sync files, stay stable across repeated syncs, and read back as the
+    original text.
+  - **DOM** — a static scan of `src/`: `innerHTML` may only be assigned a literal
+    with no interpolation, no `insertAdjacentHTML`/`outerHTML`/`document.write`,
+    no `eval`/`new Function`, and `el()` exposes no markup option.
+  - **Storage** — only real hex colours can reach an inline style (they end up in
+    `style="…"`), and a hostile backup can't pollute `Object.prototype`, smuggle
+    unknown fields, store a string where a timestamp belongs, or leave entries
+    pointing at projects that don't exist.
+  - **Manifest** — permissions stay `storage` + `alarms`, with no host
+    permissions, content scripts, web-accessible resources, weakened CSP, remote
+    `<script>`/`<link>`, inline scripts, or any network API in the source.
+
+Each protection was mutation-tested: removing the escaping, loosening the colour
+check, restoring the raw backup import, putting the colour back into markup, or
+adding `<all_urls>` to the manifest each make the suite fail.
+
 ## Data & privacy
 
 Everything is stored in `chrome.storage.local`, inside this browser profile on
@@ -186,7 +227,8 @@ src/lib/
   entry-editor.js      add/edit entry dialog
   ui.js                el(), modal(), toast()
   theme.css            design tokens, light + dark
-test/merge.test.mjs    sync merge rules (node test/merge.test.mjs)
+test/merge.test.mjs    sync merge rules
+test/injection.test.mjs  injection regressions (CSV, DOM, storage, manifest)
 ```
 
 No build step, no dependencies — the source is what runs.

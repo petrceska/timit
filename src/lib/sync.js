@@ -27,7 +27,7 @@
  */
 
 import { Store } from './store.js';
-import { parseCSV } from './csv.js';
+import { parseCSV, neutralizeFormula, restoreFormula } from './csv.js';
 import { getHandle, setHandle, deleteHandle, handlePermission } from './fsdb.js';
 
 export const SYNC_COLUMNS = [
@@ -55,10 +55,12 @@ function rowForEntry(entry, project) {
   const secs = Math.floor(ms / 1000);
   const cells = new Array(SYNC_COLUMNS.length).fill('');
   cells[C.ID] = entry.id;
-  cells[C.Project] = project.name;
-  cells[C.Client] = project.client || '';
-  cells[C.Description] = entry.description || '';
-  cells[C.Tags] = (entry.tags || []).join(', ');
+  // Free text is made inert for spreadsheets — this file gets committed and
+  // opened by other people.
+  cells[C.Project] = neutralizeFormula(project.name);
+  cells[C.Client] = neutralizeFormula(project.client || '');
+  cells[C.Description] = neutralizeFormula(entry.description || '');
+  cells[C.Tags] = neutralizeFormula((entry.tags || []).join(', '));
   cells[C.Billable] = entry.billable ? 'Yes' : 'No';
   cells[C['Start Date']] = isoDate(entry.start);
   cells[C['Start Time']] = isoTime(entry.start);
@@ -70,11 +72,15 @@ function rowForEntry(entry, project) {
   return cells;
 }
 
-/** Identity for id-less rows: when did it happen and what was it called. */
+/**
+ * Identity for id-less rows: when did it happen and what was it called.
+ * The description is un-escaped first so a row written by another tool still
+ * matches ours even if only one of the two neutralised a leading `=`.
+ */
 const contentKey = (cells) => [
   cells[C['Start Date']], cells[C['Start Time']],
   cells[C['End Date']], cells[C['End Time']],
-  (cells[C.Description] || '').trim().toLowerCase(),
+  restoreFormula(cells[C.Description] || '').trim().toLowerCase(),
 ].join('|');
 
 const sortKey = (cells) =>

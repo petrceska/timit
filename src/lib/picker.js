@@ -2,7 +2,7 @@
  * Project combobox: type to filter existing projects, or create a new one by
  * typing a name that doesn't exist yet. Used by the popup and the dashboard.
  */
-import { Store } from './store.js';
+import { Store, safeColor } from './store.js';
 
 export class ProjectPicker {
   /**
@@ -80,7 +80,7 @@ export class ProjectPicker {
   _renderButton() {
     const p = this.projects.find((x) => x.id === this.value);
     this.dot.hidden = !p;
-    if (p) this.dot.style.background = p.color;
+    if (p) this.dot.style.background = safeColor(p.color);
     this.label.textContent = p ? p.name : this.opts.placeholder;
     this.label.classList.toggle('muted', !p);
   }
@@ -113,17 +113,25 @@ export class ProjectPicker {
       li.className = 'picker-row' + (i === this.highlight ? ' active' : '') +
         (row.type === 'empty' ? ' empty' : '');
       li.setAttribute('role', 'option');
+      // Built as nodes rather than markup: project names, clients and colours can
+      // come from an imported file, and must never be parsed as HTML.
+      const span = (cls, text) => {
+        const s = document.createElement('span');
+        s.className = cls;
+        if (text !== undefined) s.textContent = text;
+        return s;
+      };
       if (row.type === 'project') {
-        li.innerHTML = `<span class="dot" style="background:${row.project.color}"></span>
-          <span class="name"></span>${row.project.client ? '<span class="client"></span>' : ''}`;
-        li.querySelector('.name').textContent = row.project.name;
-        if (row.project.client) li.querySelector('.client').textContent = row.project.client;
+        const dot = span('dot');
+        // Assigning the property (not the attribute) drops anything that isn't
+        // a valid colour instead of letting it escape into markup.
+        dot.style.background = safeColor(row.project.color);
+        li.append(dot, span('name', row.project.name));
+        if (row.project.client) li.append(span('client', row.project.client));
       } else if (row.type === 'create') {
-        li.innerHTML = `<span class="plus">+</span><span class="name"></span>`;
-        li.querySelector('.name').textContent = `Create “${row.label}”`;
+        li.append(span('plus', '+'), span('name', `Create “${row.label}”`));
       } else {
-        li.innerHTML = `<span class="dot empty-dot"></span><span class="name"></span>`;
-        li.querySelector('.name').textContent = row.label;
+        li.append(span('dot empty-dot'), span('name', row.label));
       }
       if (row.type !== 'empty') {
         li.addEventListener('mouseenter', () => {

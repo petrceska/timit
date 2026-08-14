@@ -22,6 +22,69 @@ export const DEFAULT_SETTINGS = {
   userEmail: '',
 };
 
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * Colours end up in inline styles, so only real hex values are allowed through.
+ * Anything else (from a hand-edited or hostile backup file) falls back to the
+ * palette instead of being handed to the DOM.
+ */
+export function safeColor(value, fallback = PALETTE[0]) {
+  return typeof value === 'string' && HEX_COLOR.test(value.trim())
+    ? value.trim().toLowerCase()
+    : fallback;
+}
+
+// Only primitives are converted. String(someObject) can throw (a crafted
+// backup with {"toString": 1} does exactly that), so objects become ''/null
+// rather than being coerced.
+const str = (v) => {
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return '';
+};
+const num = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
+/** Rebuilds a project from untrusted input, field by field. */
+function cleanProject(raw, i = 0) {
+  if (!raw || typeof raw !== 'object') return null;
+  const name = str(raw.name).trim();
+  if (!name) return null;
+  return {
+    id: str(raw.id) || uid(),
+    name,
+    color: safeColor(raw.color, PALETTE[i % PALETTE.length]),
+    client: str(raw.client),
+    archived: !!raw.archived,
+    createdAt: num(raw.createdAt) ?? Date.now(),
+  };
+}
+
+/** Rebuilds an entry from untrusted input; returns null if it can't be trusted. */
+function cleanEntry(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const start = num(raw.start);
+  if (start === null) return null;
+  const end = raw.end === null || raw.end === undefined ? null : num(raw.end);
+  if (end !== null && end < start) return null;
+  return {
+    id: str(raw.id) || uid(),
+    projectId: raw.projectId == null ? null : str(raw.projectId),
+    description: str(raw.description),
+    start,
+    end,
+    tags: Array.isArray(raw.tags) ? raw.tags.map(str).filter(Boolean) : [],
+    billable: !!raw.billable,
+  };
+}
+
 function uid() {
   return (crypto.randomUUID && crypto.randomUUID()) ||
     Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -50,9 +113,14 @@ export const Store = {
   },
 
   /* ---------- projects ---------- */
+  safeColor,
+
   async getProjects() {
     const list = await read(K.projects, []);
-    return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+    // Neutralise anything unsafe that an older import may have stored.
+    return list
+      .map((p) => ({ ...p, color: safeColor(p.color) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   },
   async getProjectMap() {
     const map = new Map();
@@ -68,7 +136,7 @@ export const Store = {
     const project = {
       id: uid(),
       name: trimmed,
-      color: color || PALETTE[projects.length % PALETTE.length],
+      color: safeColor(color, PALETTE[projects.length % PALETTE.length]),
       client,
       archived: false,
       createdAt: Date.now(),
@@ -89,6 +157,7 @@ export const Store = {
       if (clash) throw new Error(`A project named "${name}" already exists`);
       patch = { ...patch, name };
     }
+    if (patch.color !== undefined) patch = { ...patch, color: safeColor(patch.color) };
     projects[i] = { ...projects[i], ...patch };
     await write(K.projects, projects);
     return projects[i];
@@ -190,22 +259,51 @@ export const Store = {
       settings: await this.getSettings(),
     };
   },
+  /**
+   * Restores a backup. The file is untrusted input: every record is rebuilt
+   * field by field (see cleanProject/cleanEntry) so nothing unexpected — a
+   * colour carrying markup, a "__proto__" key, a string where a timestamp
+   * belongs — is ever written back to storage.
+   */
   async importBackup(data, { replace = false } = {}) {
     if (!data || data.format !== 'timit-backup') throw new Error('Not a TimIt backup file');
+    const incomingProjects = (Array.isArray(data.projects) ? data.projects : [])
+      .map(cleanProject).filter(Boolean);
+    const incomingEntries = (Array.isArray(data.entries) ? data.entries : [])
+      .map(cleanEntry).filter(Boolean);
+    // Entries may only point at projects that actually exist after the import.
+    const keepIds = new Set(incomingProjects.map((p) => p.id));
+
     if (replace) {
-      await write(K.projects, data.projects || []);
-      await write(K.entries, data.entries || []);
+      for (const e of incomingEntries) if (!keepIds.has(e.projectId)) e.projectId = null;
+      await write(K.projects, incomingProjects);
+      await write(K.entries, incomingEntries);
     } else {
       const projects = await read(K.projects, []);
       const entries = await read(K.entries, []);
       const known = new Set(projects.map((p) => p.id));
       const knownE = new Set(entries.map((e) => e.id));
-      for (const p of data.projects || []) if (!known.has(p.id)) projects.push(p);
-      for (const e of data.entries || []) if (!knownE.has(e.id)) entries.push(e);
+      for (const p of incomingProjects) if (!known.has(p.id)) { projects.push(p); known.add(p.id); }
+      for (const e of incomingEntries) {
+        if (knownE.has(e.id)) continue;
+        if (e.projectId && !known.has(e.projectId)) e.projectId = null;
+        entries.push(e);
+        knownE.add(e.id);
+      }
       await write(K.projects, projects);
       await write(K.entries, entries);
     }
-    if (data.settings) await this.saveSettings(data.settings);
+
+    if (data.settings && typeof data.settings === 'object') {
+      // Only known settings keys, with values coerced to the expected shape.
+      const s = data.settings;
+      await this.saveSettings({
+        csvDateFormat: s.csvDateFormat === 'iso' ? 'iso' : 'clockify',
+        weekStart: s.weekStart === 0 ? 0 : 1,
+        userName: str(s.userName).slice(0, 200),
+        userEmail: str(s.userEmail).slice(0, 200),
+      });
+    }
   },
   async wipe() {
     await chrome.storage.local.remove([K.projects, K.entries]);

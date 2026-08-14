@@ -3,9 +3,11 @@
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
+    // Deliberately no `html:` option — everything user-supplied (descriptions,
+    // project names, imported CSV cells) goes through textContent or setAttribute,
+    // so there is no way to hand this helper markup to parse.
     if (k === 'class') node.className = v;
     else if (k === 'text') node.textContent = v;
-    else if (k === 'html') node.innerHTML = v;
     else if (k.startsWith('on')) node.addEventListener(k.slice(2).toLowerCase(), v);
     else if (v === true) node.setAttribute(k, '');
     else if (v !== false && v != null) node.setAttribute(k, v);
