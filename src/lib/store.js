@@ -5,7 +5,7 @@
  *   project = { id, name, color, client, archived, createdAt }
  *   entry   = { id, projectId|null, description, start, end|null, tags[], billable }
  *             start/end are epoch milliseconds. end === null means "running".
- *   settings= { csvDateFormat, weekStart, userName, userEmail }
+ *   settings= { csvDateFormat, weekStart, userName, userEmail, pageSuggestions }
  */
 
 const K = { projects: 'projects', entries: 'entries', settings: 'settings' };
@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS = {
   weekStart: 1, // 0 = Sunday, 1 = Monday
   userName: '',
   userEmail: '',
+  pageSuggestions: true, // suggest tasks from the current tab (popup + shortcut)
 };
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -302,6 +303,7 @@ export const Store = {
         weekStart: s.weekStart === 0 ? 0 : 1,
         userName: str(s.userName).slice(0, 200),
         userEmail: str(s.userEmail).slice(0, 200),
+        pageSuggestions: s.pageSuggestions !== false,
       });
     }
   },

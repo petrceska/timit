@@ -74,8 +74,9 @@ export function createDataView(root, app) {
     el('option', { value: '0' }, 'Sunday'));
   const userName = el('input', { type: 'text', placeholder: 'Your name (CSV "User" column)' });
   const userEmail = el('input', { type: 'email', placeholder: 'you@example.com (CSV "Email" column)' });
+  const pageSuggestions = el('input', { type: 'checkbox' });
 
-  for (const node of [dateFmt, weekStart, userName, userEmail]) {
+  for (const node of [dateFmt, weekStart, userName, userEmail, pageSuggestions]) {
     node.addEventListener('change', saveSettings);
   }
 
@@ -85,7 +86,12 @@ export function createDataView(root, app) {
       el('div', { class: 'field' }, el('label', {}, 'CSV date format'), dateFmt),
       el('div', { class: 'field' }, el('label', {}, 'Week starts on'), weekStart),
       el('div', { class: 'field' }, el('label', {}, 'User name'), userName),
-      el('div', { class: 'field' }, el('label', {}, 'Email'), userEmail)));
+      el('div', { class: 'field' }, el('label', {}, 'Email'), userEmail)),
+    el('label', { class: 'row', style: 'margin-top:12px' }, pageSuggestions,
+      ' Suggest tasks from the current tab'),
+    el('p', { class: 'help' },
+      'Issues, tickets, branches, files and page titles. The tab is read only when you open ' +
+      'the popup or press the shortcut, and nothing about it is stored.'));
 
   /* ---------- danger zone ---------- */
   const dangerCard = el('div', { class: 'card danger-zone' },
@@ -212,6 +218,7 @@ export function createDataView(root, app) {
       weekStart: Number(weekStart.value),
       userName: userName.value.trim(),
       userEmail: userEmail.value.trim(),
+      pageSuggestions: pageSuggestions.checked,
     });
     toast('Settings saved');
     app.reloadSettings();
@@ -223,6 +230,7 @@ export function createDataView(root, app) {
     weekStart.value = String(s.weekStart);
     if (document.activeElement !== userName) userName.value = s.userName || '';
     if (document.activeElement !== userEmail) userEmail.value = s.userEmail || '';
+    pageSuggestions.checked = s.pageSuggestions !== false;
 
     const entries = await Store.getEntries();
     const projects = await Store.getProjects();

@@ -3,7 +3,7 @@
   "name": "TimIt — Local Time Tracker",
   "version": "1.0.0",
   "description": "Offline time tracker with projects, reports and Clockify-compatible CSV import/export. All data stays on your computer.",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "activeTab", "scripting"],
   "action": {
     "default_title": "TimIt",
     "default_popup": "src/popup/popup.html",

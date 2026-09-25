@@ -21,6 +21,28 @@ body { width: 380px; background: var(--bg); }
 .grow { flex: 1; min-width: 0; }
 .timer { font-size: 15px; font-weight: 600; letter-spacing: .2px; }
 .btn.start { min-width: 62px; justify-content: center; }
+
+.suggestions { display: flex; flex-direction: column; gap: 4px; margin: -2px 0 8px; }
+.suggestion {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  padding: 5px 8px; border: 1px dashed var(--border); border-radius: 8px;
+  background: transparent; cursor: pointer; text-align: left; font-size: 12px;
+}
+.suggestion:hover, .suggestion:focus-visible {
+  outline: none; background: var(--surface-2); border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.suggestion .src {
+  flex: none; min-width: 56px; font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.suggestion .text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion .proj {
+  flex: none; display: flex; align-items: center; gap: 4px; max-width: 110px;
+  font-size: 11px; color: var(--muted);
+}
+.suggestion .proj span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion .dot { width: 7px; height: 7px; }
 .btn.stop { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 .totals {

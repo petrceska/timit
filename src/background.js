@@ -3,6 +3,7 @@
  * handles the keyboard shortcut. No network access anywhere in this extension.
  */
 import { Store, onDataChanged } from './lib/store.js';
+import { readActiveTab, suggestTasks } from './lib/context.js';
 
 const ALARM = 'timit-tick';
 const RUNNING_COLOR = '#2ec4a6';
@@ -30,6 +31,18 @@ async function refreshBadge() {
   }
 }
 
+/** The shortcut grants the tab it was pressed on; start on what that tab is about. */
+async function taskFromActiveTab() {
+  if (!(await Store.getSettings()).pageSuggestions) return {};
+  const page = await readActiveTab();
+  if (!page) return {};
+  const [top] = suggestTasks(page, {
+    projects: await Store.getProjects(),
+    entries: await Store.getEntries(),
+  });
+  return top ? { description: top.description, projectId: top.projectId } : {};
+}
+
 chrome.runtime.onStartup.addListener(refreshBadge);
 chrome.runtime.onInstalled.addListener(refreshBadge);
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === ALARM) refreshBadge(); });
@@ -39,7 +52,10 @@ chrome.commands?.onCommand.addListener(async (command) => {
   if (command !== 'toggle-timer') return;
   const running = await Store.getRunning();
   if (running) await Store.stopTimer();
-  else await Store.startTimer({});
+  else {
+    const start = Date.now(); // the key press, not whenever the page answered
+    await Store.startTimer({ start, ...(await taskFromActiveTab()) });
+  }
   await refreshBadge();
 });
 

@@ -3,6 +3,7 @@ import { ProjectPicker } from '../lib/picker.js';
 import { openEntryEditor } from '../lib/entry-editor.js';
 import { el, toast } from '../lib/ui.js';
 import { flushSync, syncAll } from '../lib/sync.js';
+import { readActiveTab, suggestTasks } from '../lib/context.js';
 import {
   formatClock, formatHuman, durationOf, friendlyDate, clockTime,
   startOfDay, startOfWeek,
@@ -10,6 +11,7 @@ import {
 
 const $ = (sel) => document.querySelector(sel);
 const descInput = $('#description');
+const suggestionsEl = $('#suggestions');
 const timerEl = $('#timer');
 const toggleBtn = $('#toggle');
 const listEl = $('#recent-list');
@@ -22,6 +24,9 @@ const picker = new ProjectPicker($('#project-picker'), {
 
 let running = null;
 let projects = new Map();
+let allEntries = [];
+// What the current tab showed when the popup opened; read once, never stored.
+let page = null;
 let ticker = null;
 // Our own writes (e.g. typing a description) come back as storage events; ignore
 // those briefly so the UI doesn't re-render under the user's cursor.
@@ -36,6 +41,7 @@ function openDashboard(hash = '') {
 async function refresh() {
   projects = await Store.getProjectMap();
   const entries = await Store.getEntries();
+  allEntries = entries;
   running = entries.find((e) => e.end === null) || null;
   await picker.refresh();
 
@@ -56,6 +62,7 @@ async function refresh() {
 
   renderTotals(entries);
   renderRecent(entries.filter((e) => e.end !== null).slice(0, 25));
+  renderSuggestions();
 }
 
 function startTicking() {
@@ -120,6 +127,59 @@ function renderRecent(entries) {
   }
 }
 
+/** Reads the tab the popup was opened on — the click is what grants access. */
+async function loadSuggestions() {
+  if (!(await Store.getSettings()).pageSuggestions) return;
+  page = await readActiveTab();
+  renderSuggestions();
+}
+
+function renderSuggestions() {
+  suggestionsEl.innerHTML = '';
+  const list = page ? suggestTasks(page, { projects: [...projects.values()], entries: allEntries }) : [];
+  for (const s of list) {
+    const project = s.projectId ? projects.get(s.projectId) : null;
+    suggestionsEl.append(el('button', {
+      type: 'button', class: 'suggestion',
+      title: `Use “${s.description}”` + (project ? ` in ${project.name}` : ''),
+      onclick: () => applySuggestion(s),
+      onkeydown: moveBetweenSuggestions,
+    },
+      el('span', { class: 'src', text: s.source }),
+      el('span', { class: 'text', text: s.description }),
+      project ? el('span', { class: 'proj' },
+        el('span', { class: 'dot', style: `background:${project.color}` }),
+        el('span', { text: project.name })) : null));
+  }
+  toggleSuggestions();
+}
+
+/** Suggestions are for an empty box; once there's a description they step aside. */
+function toggleSuggestions() {
+  suggestionsEl.classList.toggle('hidden',
+    !suggestionsEl.childElementCount || descInput.value.trim() !== '');
+}
+
+/** Fills the form (and a running entry) — starting is still your call. */
+async function applySuggestion(s) {
+  descInput.value = s.description;
+  if (s.projectId && !picker.getValue()) await picker.setValue(s.projectId);
+  if (running) {
+    mute();
+    await Store.updateEntry(running.id, { description: s.description, projectId: picker.getValue() });
+  }
+  toggleSuggestions();
+  descInput.focus();
+}
+
+function moveBetweenSuggestions(e) {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  const buttons = [...suggestionsEl.children];
+  const i = buttons.indexOf(e.currentTarget) + (e.key === 'ArrowDown' ? 1 : -1);
+  (i < 0 ? descInput : buttons[i])?.focus();
+}
+
 /** Sync only runs while an extension page is open, so say when it's stuck. */
 async function renderSyncNotice() {
   const notice = $('#sync-notice');
@@ -169,10 +229,15 @@ toggleBtn.addEventListener('click', async () => {
 });
 
 descInput.addEventListener('input', () => {
+  toggleSuggestions();
   if (running) { mute(); Store.updateEntry(running.id, { description: descInput.value.trim() }); }
 });
 descInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') toggleBtn.click();
+  else if (e.key === 'ArrowDown' && !suggestionsEl.classList.contains('hidden')) {
+    e.preventDefault();
+    suggestionsEl.firstElementChild?.focus();
+  }
 });
 
 $('#add-manual').addEventListener('click', async () => {
@@ -184,6 +249,7 @@ $('#see-all').addEventListener('click', () => openDashboard('#entries'));
 
 onDataChanged(() => { if (Date.now() >= mutedUntil) refresh(); });
 refresh();
+loadSuggestions();
 descInput.focus();
 // Catch up on changes made while no extension page was open (e.g. the timer was
 // stopped with the keyboard shortcut), then report anything that stayed stuck.

@@ -3,14 +3,16 @@
  *
  * Everything here is input TimIt does not control: entry descriptions and
  * project names typed by the user, CSV files imported from other tools, JSON
- * backups, and sync files edited by hand or pulled from git. Each test pins down
- * one way that input must NOT be able to escape the slot it belongs in:
+ * backups, sync files edited by hand or pulled from git, and the web pages it
+ * reads suggestions from. Each test pins down one way that input must NOT be
+ * able to escape the slot it belongs in:
  *
  *   1. CSV structure  — no forging extra rows, columns or ids
  *   2. CSV formulas   — no executable cells in files we write
  *   3. DOM            — no markup sinks anywhere in src/
  *   4. Storage        — no unsafe values reaching inline styles or storage
  *   5. Manifest       — no widening of what the extension may touch
+ *   6. Page context   — no reaching past the tab, no page text choosing anything
  *
  * Run: node test/injection.test.mjs
  */
@@ -46,6 +48,8 @@ const { Store, safeColor, PALETTE } = await import(new URL('../src/lib/store.js'
 const { toCSV, fromCSV, parseCSV, neutralizeFormula, restoreFormula } =
   await import(new URL('../src/lib/csv.js', import.meta.url));
 const { mergeRows, SYNC_COLUMNS } = await import(new URL('../src/lib/sync.js', import.meta.url));
+const { suggestTasks, DESCRIPTION_LIMIT, MAX_SUGGESTIONS } =
+  await import(new URL('../src/lib/context.js', import.meta.url));
 
 /* ---- harness ------------------------------------------------------------ */
 
@@ -337,9 +341,13 @@ test('imported CSV text stays text all the way into storage', async () => {
 
 /* ================= 5. Manifest: nothing widened ========================== */
 
-test('the extension asks for nothing beyond local storage', () => {
+test('the extension asks for local storage and the tab you invoke it on, nothing more', () => {
   const manifest = JSON.parse(readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
-  assert.deepEqual([...(manifest.permissions || [])].sort(), ['alarms', 'storage']);
+  // activeTab + scripting reach only the tab you clicked the icon or pressed the
+  // shortcut on, and only at that moment. "tabs" or host permissions would reach
+  // every page you visit.
+  assert.deepEqual([...(manifest.permissions || [])].sort(),
+    ['activeTab', 'alarms', 'scripting', 'storage']);
   assert.equal(manifest.host_permissions, undefined, 'host permissions would allow network access');
   assert.equal(manifest.content_scripts, undefined, 'content scripts would run on pages');
   assert.equal(manifest.web_accessible_resources, undefined, 'pages could reach into the extension');
@@ -366,6 +374,64 @@ test('no page loads code or data from the network', () => {
     for (const sink of ['fetch(', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'navigator.sendBeacon']) {
       assert.ok(!code.includes(sink), `${rel} can reach the network (${sink})`);
     }
+  }
+});
+
+/* ================= 6. Page context: the tab you're on ==================== */
+
+test('a tab is read only by our own function, once, in an isolated world', () => {
+  const callers = sourceFiles
+    .filter((f) => /\bscripting\./.test(readFileSync(f, 'utf8')))
+    .map((f) => path.relative(SRC, f));
+  assert.deepEqual(callers, [path.join('lib', 'context.js')], 'chrome.scripting used outside context.js');
+  const code = readFileSync(path.join(SRC, 'lib/context.js'), 'utf8');
+  assert.deepEqual([...code.matchAll(/scripting\.(\w+)\(/g)].map((m) => m[1]), ['executeScript'],
+    'only one-off injection: no registered content scripts, no CSS');
+  const at = code.indexOf('executeScript(');
+  const call = code.slice(at, code.indexOf('});', at));
+  assert.match(call, /func: readPage,/);
+  for (const widened of ['files:', 'world:', 'allFrames', 'frameIds', 'documentIds']) {
+    assert.ok(!call.includes(widened), `executeScript was widened with ${widened}`);
+  }
+  // The injected function reads and reports back; it never acts on the page.
+  const from = code.indexOf('export function readPage');
+  const body = code.slice(from, code.indexOf('export async function readActiveTab'));
+  assert.ok(from >= 0 && body.length > 100);
+  for (const action of ['chrome.', 'postMessage', 'cookie', 'Storage', 'dispatchEvent', '.click(',
+    'setAttribute', 'textContent =', '.value =', '.remove(', 'open(']) {
+    assert.ok(!body.includes(action), `readPage does more than read: ${action}`);
+  }
+});
+
+test('text read from a page stays bounded, inert and unable to choose a project', () => {
+  const hidden = String.fromCharCode(0x202e, 0x0000, 0x200b, 0x2028, 0x0007);
+  const markup = '<img src=x onerror=alert(1)>';
+  const [flood] = suggestTasks({
+    url: 'https://example.com/',
+    title: `${hidden}${markup} `.repeat(400),
+    heading: { toString() { throw new Error('page text was coerced'); } },
+    selection: ['not', 'text'],
+    branch: 42,
+  });
+  assert.ok([...flood.description].length <= DESCRIPTION_LIMIT, 'a flood of text was not clipped');
+  // Still just characters: the popup puts them in textContent (see section 3).
+  assert.ok(flood.description.startsWith(markup));
+  assert.ok(![...hidden].some((c) => flood.description.includes(c)), 'control or bidi characters survived');
+
+  const projects = [
+    { id: 'p1', name: 'Shop', client: '' },
+    { id: 'p2', name: 'Old', client: '', archived: true },
+  ];
+  const list = suggestTasks({
+    url: 'https://github.com/acme/old/issues/1',
+    title: 'X · Issue #1 · acme/old · GitHub',
+    projectId: 'p1',
+    project: 'Shop',
+  }, { projects, entries: [] });
+  assert.ok(list.length >= 1 && list.length <= MAX_SUGGESTIONS);
+  for (const s of list) {
+    assert.deepEqual(Object.keys(s).sort(), ['description', 'projectId', 'source']);
+    assert.equal(s.projectId, null, 'a page chose a project, or an archived one was picked');
   }
 });
 
