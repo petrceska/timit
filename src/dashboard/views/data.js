@@ -11,8 +11,8 @@ export function createDataView(root, app) {
   const exportCard = el('div', { class: 'card' },
     el('h3', {}, 'Export'),
     el('p', { class: 'help' },
-      'CSV uses Clockify’s detailed-report columns, so it imports straight into Clockify — ' +
-      'and into Toggl/Harvest via their column mapping step.'),
+      'CSV uses a common detailed-report column layout, so it imports into most time trackers — ' +
+      'usually through their column mapping step.'),
     stats,
     el('div', { class: 'row' },
       el('button', { class: 'btn primary', onclick: exportCSV }, '⭳ Export all entries (CSV)'),
@@ -59,7 +59,7 @@ export function createDataView(root, app) {
   const importCard = el('div', { class: 'card' },
     el('h3', {}, 'Import'),
     el('p', { class: 'help' },
-      'Accepts Clockify detailed-report CSVs and anything with Start Date / Start Time / ' +
+      'Accepts detailed-report CSVs and anything with Start Date / Start Time / ' +
       'End Time (or a Duration) columns. Missing projects are created automatically.'),
     drop, csvInput, jsonInput,
     el('div', { class: 'row', style: 'margin-top:10px' },
@@ -67,7 +67,7 @@ export function createDataView(root, app) {
 
   /* ---------- settings ---------- */
   const dateFmt = el('select', {},
-    el('option', { value: 'clockify' }, 'MM/DD/YYYY (Clockify default)'),
+    el('option', { value: 'us' }, 'MM/DD/YYYY (US)'),
     el('option', { value: 'iso' }, 'YYYY-MM-DD (ISO)'));
   const weekStart = el('select', {},
     el('option', { value: '1' }, 'Monday'),
@@ -226,7 +226,7 @@ export function createDataView(root, app) {
 
   async function refresh() {
     const s = { ...DEFAULT_SETTINGS, ...app.settings };
-    dateFmt.value = s.csvDateFormat;
+    dateFmt.value = s.csvDateFormat === 'iso' ? 'iso' : 'us';
     weekStart.value = String(s.weekStart);
     if (document.activeElement !== userName) userName.value = s.userName || '';
     if (document.activeElement !== userEmail) userEmail.value = s.userEmail || '';

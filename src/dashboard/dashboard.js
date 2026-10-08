@@ -13,6 +13,7 @@ import { descriptionRows } from '../lib/recent.js';
 
 const $ = (sel) => document.querySelector(sel);
 const descInput = $('#description');
+const linkInput = $('#link');
 const timerEl = $('#timer');
 const toggleBtn = $('#toggle');
 
@@ -69,6 +70,7 @@ async function refreshTracker() {
     toggleBtn.classList.remove('primary');
     toggleBtn.classList.add('stop');
     if (document.activeElement !== descInput) descInput.value = running.description || '';
+    if (document.activeElement !== linkInput) linkInput.value = running.link || '';
     picker.setValue(running.projectId);
     tick();
     clearInterval(ticker);
@@ -96,15 +98,19 @@ toggleBtn.addEventListener('click', async () => {
     await Store.updateEntry(running.id, {
       description: descInput.value.trim(),
       projectId: picker.getValue(),
+      link: linkInput.value,
     });
     const stopped = await Store.stopTimer();
     toast(stopped ? `Saved ${formatHuman(stopped.end - stopped.start)}` : 'Entry discarded (too short)');
     descInput.value = '';
+    linkInput.value = '';
+    linkInput.classList.remove('invalid');
     picker.setValue(null);
   } else {
     await Store.startTimer({
       description: descInput.value.trim(),
       projectId: picker.getValue(),
+      link: linkInput.value,
     });
   }
   refreshAll();
@@ -127,6 +133,14 @@ descInput.addEventListener('input', () => {
   if (running) { mute(); Store.updateEntry(running.id, { description: descInput.value.trim() }); }
 });
 descInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggleBtn.click(); });
+linkInput.addEventListener('input', () => {
+  // Only web addresses are kept; say so instead of dropping it silently on Stop.
+  const bad = linkInput.value.trim() !== '' && !Store.safeLink(linkInput.value);
+  linkInput.classList.toggle('invalid', bad);
+  linkInput.title = bad ? 'Not a web address — it will not be saved' : '';
+  if (running) { mute(); Store.updateEntry(running.id, { link: linkInput.value }); }
+});
+linkInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggleBtn.click(); });
 $('#add-manual').addEventListener('click', async () => {
   if (await openEntryEditor(null)) { toast('Entry added'); refreshAll(); }
 });

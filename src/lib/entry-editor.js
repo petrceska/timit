@@ -25,6 +25,9 @@ export function openEntryEditor(entry = null) {
       type: 'text', value: entry?.description || '',
       placeholder: 'What did you work on?',
     });
+    const linkIn = el('input', {
+      type: 'url', value: entry?.link || '', placeholder: 'https://… (task or page you worked on)',
+    });
     const pickerHost = el('div');
     const dateIn = el('input', { type: 'date', value: dayKey(start) });
     const startIn = el('input', { type: 'time', step: '1', value: timeInput(start) });
@@ -61,8 +64,14 @@ export function openEntryEditor(entry = null) {
     syncDuration();
 
     const save = async () => {
+      const link = Store.safeLink(linkIn.value);
+      if (linkIn.value.trim() && !link) {
+        err.textContent = 'The link must be a web address (http:// or https://).';
+        return;
+      }
       const data = {
         description: desc.value.trim(),
+        link,
         projectId: picker.getValue(),
         billable: billable.checked,
         tags: tagsIn.value.split(',').map((t) => t.trim()).filter(Boolean),
@@ -112,6 +121,7 @@ export function openEntryEditor(entry = null) {
     const content = el('div', {},
       el('h2', { text: entry ? (isRunning ? 'Edit running entry' : 'Edit entry') : 'Add entry' }),
       el('div', { class: 'field' }, el('label', { text: 'Description' }), desc),
+      el('div', { class: 'field' }, el('label', { text: 'Link' }), linkIn),
       el('div', { class: 'field' }, el('label', { text: 'Project' }), pickerHost),
       isRunning
         ? el('div', { class: 'field-row' },

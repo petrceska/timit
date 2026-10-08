@@ -62,9 +62,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.icon { padding: 6px; border-color: transparent; background: transparent; line-height: 0; }
 .btn.icon:hover { background: var(--surface-2); }
+a.btn.icon.link { text-decoration: none; font-size: 13px; }
 
 input[type=text], input[type=date], input[type=time], input[type=number],
-input[type=email], input[type=search], select, textarea {
+input[type=email], input[type=search], input[type=url], select, textarea {
   padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px;
   background: var(--surface); outline: none; min-width: 0;
 }

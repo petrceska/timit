@@ -62,7 +62,7 @@ async function taskFromActiveTab() {
     projects: await Store.getProjects(),
     entries: await Store.getEntries(),
   });
-  return top ? { description: top.description, projectId: top.projectId } : {};
+  return top ? { description: top.description, projectId: top.projectId, link: Store.safeLink(page.url) } : {};
 }
 
 chrome.runtime.onStartup.addListener(refreshBadge);

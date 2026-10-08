@@ -23,6 +23,8 @@ body { min-height: 100vh; }
 
 .tracker-bar { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 520px; }
 .tracker-bar #description { flex: 1; min-width: 160px; }
+.tracker-bar #link { width: 180px; min-width: 100px; }
+.tracker-bar #link.invalid { border-color: var(--danger); }
 .picker-host { width: 190px; }
 .timer { font-size: 16px; font-weight: 600; min-width: 78px; text-align: right; }
 .btn.stop { background: var(--danger); border-color: var(--danger); color: #fff; }

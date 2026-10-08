@@ -3,7 +3,8 @@
  *
  * Shapes:
  *   project = { id, name, color, client, archived, createdAt }
- *   entry   = { id, projectId|null, description, start, end|null, tags[], billable }
+ *   entry   = { id, projectId|null, description, link, start, end|null, tags[], billable }
+ *             link is '' or an http(s) address (see safeLink).
  *             start/end are epoch milliseconds. end === null means "running".
  *   settings= { csvDateFormat, weekStart, userName, userEmail, pageSuggestions }
  */
@@ -16,7 +17,7 @@ export const PALETTE = [
 ];
 
 export const DEFAULT_SETTINGS = {
-  csvDateFormat: 'clockify', // 'clockify' (MM/DD/YYYY) | 'iso' (YYYY-MM-DD)
+  csvDateFormat: 'us', // 'us' (MM/DD/YYYY) | 'iso' (YYYY-MM-DD)
   weekStart: 1, // 0 = Sunday, 1 = Monday
   userName: '',
   userEmail: '',
@@ -34,6 +35,32 @@ export function safeColor(value, fallback = PALETTE[0]) {
   return typeof value === 'string' && HEX_COLOR.test(value.trim())
     ? value.trim().toLowerCase()
     : fallback;
+}
+
+const LINK_LIMIT = 2000;
+// What a parsed host looks like: letters, digits, dots and dashes (punycode
+// included), or an IPv6 address in brackets. Escapes like %20 are not allowed.
+const VALID_HOST = /^(?:[a-z0-9-]+\.)*[a-z0-9-]+$|^\[[0-9a-f:.]+\]$/i;
+
+/**
+ * Links are opened in a new tab, so only http and https addresses are kept —
+ * never javascript:, data: or file:. "github.com/x" gets https:// in front.
+ * Returns '' for anything that is not such an address.
+ */
+export function safeLink(value) {
+  if (typeof value !== 'string') return '';
+  let s = value.trim();
+  // Browsers differ on spaces (Chrome turns "not a link" into a host name).
+  if (!s || /\s/.test(s)) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = `https://${s}`;
+  try {
+    const url = new URL(s);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+    if (!VALID_HOST.test(url.hostname)) return '';
+    return url.href.length <= LINK_LIMIT ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 // Only primitives are converted. String(someObject) can throw (a crafted
@@ -79,6 +106,7 @@ function cleanEntry(raw) {
     id: str(raw.id) || uid(),
     projectId: raw.projectId == null ? null : str(raw.projectId),
     description: str(raw.description),
+    link: safeLink(raw.link),
     start,
     end,
     tags: Array.isArray(raw.tags) ? raw.tags.map(str).filter(Boolean) : [],
@@ -115,6 +143,7 @@ export const Store = {
 
   /* ---------- projects ---------- */
   safeColor,
+  safeLink,
 
   async getProjects() {
     const list = await read(K.projects, []);
@@ -186,6 +215,7 @@ export const Store = {
       id: uid(),
       projectId: entry.projectId ?? null,
       description: entry.description ?? '',
+      link: safeLink(entry.link),
       start: entry.start,
       end: entry.end ?? null,
       tags: entry.tags ?? [],
@@ -201,6 +231,7 @@ export const Store = {
       id: uid(),
       projectId: entry.projectId ?? null,
       description: entry.description ?? '',
+      link: safeLink(entry.link),
       start: entry.start,
       end: entry.end ?? null,
       tags: entry.tags ?? [],
@@ -214,6 +245,7 @@ export const Store = {
     const entries = await read(K.entries, []);
     const i = entries.findIndex((e) => e.id === id);
     if (i < 0) return null;
+    if (patch.link !== undefined) patch = { ...patch, link: safeLink(patch.link) };
     entries[i] = { ...entries[i], ...patch };
     await write(K.entries, entries);
     return entries[i];
@@ -234,9 +266,9 @@ export const Store = {
     return entries.find((e) => e.end === null) || null;
   },
   /** Starts a new entry, stopping whatever was running. */
-  async startTimer({ description = '', projectId = null, start = Date.now() } = {}) {
+  async startTimer({ description = '', projectId = null, link = '', start = Date.now() } = {}) {
     await this.stopTimer();
-    return this.addEntry({ description, projectId, start, end: null });
+    return this.addEntry({ description, projectId, link, start, end: null });
   },
   async stopTimer(at = Date.now()) {
     const running = await this.getRunning();
@@ -299,7 +331,7 @@ export const Store = {
       // Only known settings keys, with values coerced to the expected shape.
       const s = data.settings;
       await this.saveSettings({
-        csvDateFormat: s.csvDateFormat === 'iso' ? 'iso' : 'clockify',
+        csvDateFormat: s.csvDateFormat === 'iso' ? 'iso' : 'us',
         weekStart: s.weekStart === 0 ? 0 : 1,
         userName: str(s.userName).slice(0, 200),
         userEmail: str(s.userEmail).slice(0, 200),

@@ -1,15 +1,31 @@
 # TimIt — local time tracker for Brave / Chrome
 
-A Clockify-style time tracker that runs entirely inside your browser profile.
+A simple time tracker that runs entirely inside your browser profile.
 No account, no server, no network requests — the extension has zero host
 permissions, so it *cannot* talk to the internet even if it wanted to.
+
+**Help wanted!** TimIt is a small side project and there is a lot that could be
+better. If you use it and want to improve it, you are very welcome — see
+[Contributing](#contributing).
+
+## Features
+
+- Start and stop a timer from the toolbar popup or with `Alt+Shift+T`.
+- Projects, clients, tags and billable flags; create a project just by typing its name.
+- A dashboard with all entries, reports with charts, and project management.
+- Ready-made task descriptions from the page you are on (GitHub, GitLab, Jira, Linear, …).
+- CSV import and export that other time trackers understand, plus full JSON backups.
+- Optional sync of each project to a CSV file, so the timesheet can live in git next to the code.
+- Light and dark theme. No build step and no dependencies.
 
 ## Install (unpacked)
 
 1. Open `brave://extensions` (or `chrome://extensions`).
 2. Turn on **Developer mode** (top right).
-3. Click **Load unpacked** and pick this folder (`timit/`).
-4. Pin TimIt to the toolbar.
+3. Download this repository (`git clone https://github.com/petrceska/timit.git`,
+   or **Code → Download ZIP** on GitHub and unzip it).
+4. Click **Load unpacked** and pick the `timit/` folder.
+5. Pin TimIt to the toolbar.
 
 Updating the code later: hit the ↻ reload button on the extension card.
 
@@ -47,15 +63,29 @@ buttons keep working as before. Clicking the entry that's currently running open
 the same dialog without the end time — you can fix its start, description or
 project and it keeps running.
 
+**Links** — every entry can carry a link to the task or page you worked on.
+Paste it into the *Link* box under the description (in the popup, the dashboard
+bar or the entry dialog); `github.com/acme/shop/pull/7` is fine, `https://` is
+added for you. In lists the link shows only as a 🌐 icon, which opens it in a
+new tab. When a timer starts from a page suggestion, the page's address is put
+in the link for you, unless you already set one. Only `http` and `https`
+addresses are kept — anything else is refused, wherever it comes from (a typed
+value, a backup file), so a link can never run code. Links are kept in JSON
+backups and in synced project files (the `Link` column), but not in the
+CSV export, whose columns are fixed.
+
 **Durations** are editable in the entry dialog — type `1:30`, `90m`, `1.5` or
 `2h15m` and the end time follows.
 
 **Suggestions from the current tab** — open the popup on an issue, a pull
 request, a ticket or a file, and up to three ready-made descriptions appear under
 the text box, each labelled with where it came from and, when one fits, the
-project it belongs to. Click one (or ↓, then Enter) to fill the form; starting is
-still your call. `Alt+Shift+T` goes one step further and starts the timer on the
-best suggestion for the tab you pressed it on.
+project it belongs to. The best one is also shown greyed out in the empty text
+box: press **Start** (or Enter) without typing and the timer starts with it, in
+its project if you haven't picked one. Press Tab to put it in the box and change
+it first, click another suggestion (or ↓, then Enter) to use that one instead, or
+just type your own. `Alt+Shift+T` does the same without opening the popup: it
+starts the timer on the best suggestion for the tab you pressed it on.
 
 | On | Suggests |
 |---|---|
@@ -87,17 +117,17 @@ whole thing off under *Import / Export → Settings*.
 
 ## CSV format
 
-Export uses Clockify's *detailed report* columns:
+Export uses a common *detailed report* column layout:
 
 ```
 Project, Client, Description, Task, User, Group, Email, Tags, Billable,
 Start Date, Start Time, End Date, End Time, Duration (h), Duration (decimal)
 ```
 
-That file imports directly into Clockify, and into Toggl / Harvest / most other
+That file imports into Toggl / Harvest / most other
 trackers through their column-mapping step. Set your name and email under
 *Import / Export → Settings* if the target tool requires those columns to be
-filled. Dates are `MM/DD/YYYY` (Clockify's default) or ISO `YYYY-MM-DD` — your
+filled. Dates are `MM/DD/YYYY` (US style) or ISO `YYYY-MM-DD` — your
 choice in settings; the same setting decides how ambiguous dates are read on
 import.
 
@@ -176,8 +206,8 @@ the file name in the Projects tab.
 
 The file is sorted by start time with LF endings and is only written when the
 bytes actually change, so git diffs stay small and a no-op sync doesn't touch the
-mtime. Columns are the export columns plus `ID`, dates always ISO
-(`YYYY-MM-DD`) regardless of your CSV setting.
+mtime. Columns are the export columns plus `ID` first and `Link` last, dates
+always ISO (`YYYY-MM-DD`) regardless of your CSV setting.
 
 `node test/merge.test.mjs` runs the decision procedure against all of the cases
 above.
@@ -285,7 +315,7 @@ src/dashboard/         full-page UI (Options page)
 src/lib/
   store.js             storage layer + all data mutations
   time.js              duration/date formatting and parsing
-  csv.js               Clockify-compatible export & tolerant import
+  csv.js               CSV export & tolerant import
   picker.js            type-to-filter / type-to-create project combobox
   charts.js            canvas bar + donut charts (no dependencies)
   sync.js              per-project file sync: merge rules + engine
@@ -298,8 +328,60 @@ src/lib/
   theme.css            design tokens, light + dark
 test/merge.test.mjs    sync merge rules
 test/injection.test.mjs  injection regressions (CSV, DOM, storage, manifest)
+test/context.test.mjs  task suggestions from the current tab
 test/editor.test.mjs   entry dialog, project picker, time helpers
 test/helpers/dom.mjs   small DOM stand-in for the editor tests
 ```
 
 No build step, no dependencies — the source is what runs.
+
+## Contributing
+
+Contributions of any size are welcome: bug reports, ideas, better texts,
+design fixes, new features or more tests.
+
+1. **Report a bug or suggest an idea** — open an
+   [issue](https://github.com/petrceska/timit/issues). For a bug, write what you
+   did, what you expected, what happened, and your browser and its version.
+2. **Change the code** — fork the repository, make your change on a new branch,
+   run the [tests](#tests), and open a pull request. Please explain what the
+   change does and why. For bigger changes, open an issue first, so we can agree
+   on the idea before you spend time on it.
+
+A few rules keep TimIt what it is:
+
+- **No network access.** The extension must not get host permissions or send
+  data anywhere. `test/injection.test.mjs` checks this.
+- **No dependencies and no build step.** The source is what runs.
+- **Untrusted input stays safe.** Page text, imported files and backups must
+  never be able to run code. Add a test to `test/injection.test.mjs` when you
+  touch this area.
+
+## Contact
+
+Do you want to help with TimIt more regularly, or talk about an idea first?
+Open an [issue](https://github.com/petrceska/timit/issues) or contact me through
+my GitHub profile: [@petrceska](https://github.com/petrceska).
+
+## License
+
+Copyright (c) 2026 petrceska
+
+TimIt is free software: you can redistribute it and/or modify it under the
+terms of the GNU Lesser General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See [COPYING.LESSER](COPYING.LESSER) and [COPYING](COPYING)
+(the GNU General Public License, which the LGPL builds on).
+
+In short:
+
+- **You may** use, copy, study, change and share TimIt for any purpose,
+  including commercial use.
+- **If you share a changed version** of TimIt itself, you must publish the
+  source of your changes under the LGPLv3 too, and keep the copyright and
+  license notices.
+- **Larger works** that only use TimIt's code as a library, without changing
+  it, may use any license.
+
+By contributing, you agree that your contribution is released under the same
+license.

@@ -33,7 +33,7 @@ import { getHandle, setHandle, deleteHandle, handlePermission } from './fsdb.js'
 export const SYNC_COLUMNS = [
   'ID', 'Project', 'Client', 'Description', 'Tags', 'Billable',
   'Start Date', 'Start Time', 'End Date', 'End Time',
-  'Duration (h)', 'Duration (decimal)',
+  'Duration (h)', 'Duration (decimal)', 'Link',
 ];
 
 const C = Object.fromEntries(SYNC_COLUMNS.map((name, i) => [name, i]));
@@ -69,6 +69,7 @@ function rowForEntry(entry, project) {
   cells[C['Duration (h)']] =
     `${pad(Math.floor(secs / 3600))}:${pad(Math.floor(secs / 60) % 60)}:${pad(secs % 60)}`;
   cells[C['Duration (decimal)']] = (ms / 3600000).toFixed(2);
+  cells[C.Link] = neutralizeFormula(entry.link || '');
   return cells;
 }
 
@@ -203,7 +204,7 @@ const fingerprints = new Map();
 function fingerprint(project, entries) {
   const parts = [project.name, project.client || ''];
   for (const e of entries.slice().sort((a, b) => (a.id < b.id ? -1 : 1))) {
-    parts.push(e.id, e.start, e.end, e.description || '',
+    parts.push(e.id, e.start, e.end, e.description || '', e.link || '',
       (e.tags || []).join('|'), e.billable ? '1' : '0');
   }
   let h = 0x811c9dc5;

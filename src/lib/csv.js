@@ -1,6 +1,6 @@
 /**
- * CSV import/export in Clockify's "Detailed report" column layout, which is what
- * Clockify (and, with a column mapping step, Toggl/Harvest/Jira worklogs) accepts
+ * CSV import/export in a common "detailed report" column layout, which most time
+ * trackers (often with a column mapping step) and Jira worklogs accept
  * on import.
  */
 import { formatClock, formatDecimalHours } from './time.js';
@@ -48,7 +48,7 @@ export function restoreFormula(value) {
 
 /** entries -> CSV text. `projects` is a Map(id -> project). */
 export function toCSV(entries, projects, settings = {}) {
-  const style = settings.csvDateFormat === 'iso' ? 'iso' : 'clockify';
+  const style = settings.csvDateFormat === 'iso' ? 'iso' : 'us';
   const rows = [EXPORT_COLUMNS.join(',')];
   for (const e of entries) {
     if (e.end == null) continue; // never export a running entry
@@ -107,7 +107,7 @@ function col(headers, ...aliases) {
   return headers.findIndex((h) => wanted.includes(norm(h)));
 }
 
-function parseDate(str, prefer = 'clockify') {
+function parseDate(str, prefer = 'us') {
   const s = String(str || '').trim();
   if (!s) return null;
   let m;
@@ -173,7 +173,7 @@ export function fromCSV(text, settings = {}) {
     throw new Error('No "Start Date" (or "Date") column found in this CSV.');
   }
 
-  const prefer = settings.csvDateFormat === 'iso' ? 'iso' : 'clockify';
+  const prefer = settings.csvDateFormat === 'iso' ? 'iso' : 'us';
   const at = (row, i) => (i >= 0 && row[i] !== undefined ? row[i].trim() : '');
   const rows = [], skipped = [];
 

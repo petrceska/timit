@@ -44,7 +44,7 @@ globalThis.chrome = {
 };
 globalThis.indexedDB = { open: () => ({}) };
 
-const { Store, safeColor, PALETTE } = await import(new URL('../src/lib/store.js', import.meta.url));
+const { Store, safeColor, safeLink, PALETTE } = await import(new URL('../src/lib/store.js', import.meta.url));
 const { toCSV, fromCSV, parseCSV, neutralizeFormula, restoreFormula } =
   await import(new URL('../src/lib/csv.js', import.meta.url));
 const { mergeRows, SYNC_COLUMNS } = await import(new URL('../src/lib/sync.js', import.meta.url));
@@ -318,7 +318,7 @@ test('a backup cannot smuggle unexpected fields or shapes into storage', async (
   assert.equal(entries.find((e) => e.id === 'e4').projectId, null, 'entry kept a dangling project id');
 
   const settings = await Store.getSettings();
-  assert.equal(settings.csvDateFormat, 'clockify');
+  assert.equal(settings.csvDateFormat, 'us');
   assert.equal(settings.weekStart, 1);
   assert.ok(!('extra' in settings));
 });
@@ -433,6 +433,39 @@ test('text read from a page stays bounded, inert and unable to choose a project'
     assert.deepEqual(Object.keys(s).sort(), ['description', 'projectId', 'source']);
     assert.equal(s.projectId, null, 'a page chose a project, or an archived one was picked');
   }
+});
+
+/* ---- 7. Links ----------------------------------------------------------- */
+
+test('only http and https links are kept, from any source', async () => {
+  for (const bad of [
+    'javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>x</script>',
+    'file:///etc/passwd', 'chrome://settings', 'vbscript:x', 'not a link', 'https://not a link',
+    'https://', 'https://a%20b/',
+    `https://x.com/${'a'.repeat(3000)}`, { toString: () => 'https://x.com' }, 42,
+  ]) {
+    assert.equal(safeLink(bad), '', `kept ${String(bad).slice(0, 40)}`);
+  }
+  assert.equal(safeLink('https://github.com/a/b/issues/1'), 'https://github.com/a/b/issues/1');
+  assert.equal(safeLink('github.com/a/b'), 'https://github.com/a/b');
+  assert.equal(safeLink('http://intranet.local/x'), 'http://intranet.local/x');
+
+  store.entries = [];
+  const added = await Store.addEntry({ start: 1, end: 2, link: 'javascript:alert(1)' });
+  assert.equal(added.link, '');
+  const updated = await Store.updateEntry(added.id, { link: 'data:text/html,x' });
+  assert.equal(updated.link, '');
+  await Store.importBackup({ format: 'timit-backup', entries: [
+    { id: 'e9', start: 1, end: 2, link: 'javascript:alert(1)' },
+  ] }, { replace: true });
+  assert.equal(store.entries[0].link, '');
+});
+
+test('a link in the sync file cannot become a formula', () => {
+  const entry = { id: 'e1', start: 0, end: 3600000, description: 'x', link: '=HYPERLINK("http://evil")' };
+  const { text } = mergeRows('', [entry], project, []);
+  const row = parseCSV(text)[1];
+  assert.equal(row[SYNC_COLUMNS.indexOf('Link')], `'=HYPERLINK("http://evil")`);
 });
 
 /* ---- run ---------------------------------------------------------------- */

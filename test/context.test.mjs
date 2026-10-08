@@ -38,8 +38,8 @@ const pairs = (list) => list.map((s) => [s.source, s.description]);
 
 test('GitHub issue → repo#number and its title, under the repo\'s project', () => {
   const [s, ...more] = suggest({
-    url: 'https://github.com/petrceska/timit/issues/42',
-    title: 'Add dark mode · Issue #42 · petrceska/timit · GitHub',
+    url: 'https://github.com/octocat/timit/issues/42',
+    title: 'Add dark mode · Issue #42 · octocat/timit · GitHub',
   });
   assert.deepEqual(s, { description: 'timit#42 Add dark mode', source: 'Issue', projectId: 'timit' });
   assert.equal(more.length, 0);
@@ -47,9 +47,9 @@ test('GitHub issue → repo#number and its title, under the repo\'s project', ()
 
 test('GitHub pull request → title without the author, plus its branch', () => {
   const list = suggest({
-    url: 'https://github.com/petrceska/timit/pull/12/files',
-    title: 'Keep stand by mode by petrceska · Pull Request #12 · petrceska/timit · GitHub',
-    branch: 'petrceska:feature/PAY-7-retry-refunds',
+    url: 'https://github.com/octocat/timit/pull/12/files',
+    title: 'Keep stand by mode by octocat · Pull Request #12 · octocat/timit · GitHub',
+    branch: 'octocat:feature/PAY-7-retry-refunds',
   });
   assert.deepEqual(pairs(list), [
     ['Pull request', 'timit#12 Keep stand by mode'],
@@ -59,8 +59,8 @@ test('GitHub pull request → title without the author, plus its branch', () => 
 
 test('GitHub file on a branch with slashes → file and branch', () => {
   const list = suggest({
-    url: 'https://github.com/petrceska/timit/blob/feature/login-form/src/lib/store.js',
-    title: 'timit/src/lib/store.js at feature/login-form · petrceska/timit · GitHub',
+    url: 'https://github.com/octocat/timit/blob/feature/login-form/src/lib/store.js',
+    title: 'timit/src/lib/store.js at feature/login-form · octocat/timit · GitHub',
   });
   assert.deepEqual(pairs(list), [['File', 'store.js (timit)'], ['Branch', 'Login form']]);
   assert.ok(list.every((s) => s.projectId === 'timit'));
@@ -68,16 +68,16 @@ test('GitHub file on a branch with slashes → file and branch', () => {
 
 test('a branch created from an issue reads as that issue', () => {
   const list = suggest({
-    url: 'https://github.com/petrceska/timit/tree/42-add-dark-mode',
-    title: 'petrceska/timit at 42-add-dark-mode · GitHub',
+    url: 'https://github.com/octocat/timit/tree/42-add-dark-mode',
+    title: 'octocat/timit at 42-add-dark-mode · GitHub',
   });
   assert.deepEqual(pairs(list), [['Branch', 'timit#42 Add dark mode']]);
 });
 
 test('the default branch says nothing, so the repository is offered', () => {
   const list = suggest({
-    url: 'https://github.com/petrceska/timit/tree/main',
-    title: 'petrceska/timit at main · GitHub',
+    url: 'https://github.com/octocat/timit/tree/main',
+    title: 'octocat/timit at main · GitHub',
   });
   assert.deepEqual(pairs(list), [['Repository', 'timit']]);
 });
@@ -106,7 +106,7 @@ test('Azure DevOps work item', () => {
 
 test('web editors: the open file and its workspace', () => {
   const [s] = suggest({
-    url: 'https://vscode.dev/github/petrceska/timit',
+    url: 'https://vscode.dev/github/octocat/timit',
     title: '● store.js — timit [Codespaces] — Visual Studio Code',
   });
   assert.deepEqual(s, { description: 'store.js (timit)', source: 'File', projectId: 'timit' });
@@ -170,8 +170,8 @@ test('a page that only names its site suggests nothing', () => {
 
 test('never more than MAX_SUGGESTIONS', () => {
   const list = suggest({
-    url: 'https://github.com/petrceska/timit/pull/12',
-    title: 'Keep stand by mode by petrceska · Pull Request #12 · petrceska/timit · GitHub',
+    url: 'https://github.com/octocat/timit/pull/12',
+    title: 'Keep stand by mode by octocat · Pull Request #12 · octocat/timit · GitHub',
     branch: 'feature/PAY-7-retry', selection: 'something else entirely',
   });
   assert.equal(list.length, MAX_SUGGESTIONS);
@@ -181,8 +181,8 @@ test('never more than MAX_SUGGESTIONS', () => {
 
 test('the same ticket tracked before beats a project named after the repo', () => {
   const [s] = suggest({
-    url: 'https://github.com/petrceska/timit/issues/42',
-    title: 'Add dark mode · Issue #42 · petrceska/timit · GitHub',
+    url: 'https://github.com/octocat/timit/issues/42',
+    title: 'Add dark mode · Issue #42 · octocat/timit · GitHub',
   }, { entries: [entry('timit#42 first look', 'shop')] });
   assert.equal(s.projectId, 'shop');
 });
@@ -214,7 +214,7 @@ test('the site or repository owner can match a client', () => {
 
 test('names that contain one another match; archived projects never do', () => {
   const [s] = suggestTasks(page({
-    url: 'https://github.com/petrceska/timit', title: 'petrceska/timit: local time tracker',
+    url: 'https://github.com/octocat/timit', title: 'octocat/timit: local time tracker',
   }), { projects: [{ id: 'x', name: 'TimIt Extension', client: '' }] });
   assert.equal(s.projectId, 'x');
 

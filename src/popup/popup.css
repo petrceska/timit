@@ -17,6 +17,8 @@ body { width: 380px; background: var(--bg); }
 
 .tracker { padding: 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .tracker #description { width: 100%; margin-bottom: 8px; }
+.tracker #link { width: 100%; margin-bottom: 8px; font-size: 12px; }
+.tracker #link.invalid { border-color: var(--danger); }
 .tracker-row { display: flex; align-items: center; gap: 8px; }
 .grow { flex: 1; min-width: 0; }
 .timer { font-size: 15px; font-weight: 600; letter-spacing: .2px; }
@@ -32,6 +34,7 @@ body { width: 380px; background: var(--bg); }
   outline: none; background: var(--surface-2); border-style: solid;
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
+.suggestion.auto { border-style: solid; border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .suggestion .src {
   flex: none; min-width: 56px; font-size: 10px; color: var(--muted);
   text-transform: uppercase; letter-spacing: .4px;

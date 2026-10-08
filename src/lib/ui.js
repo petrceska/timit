@@ -1,4 +1,5 @@
 /** Small DOM helpers shared by the popup and the dashboard. */
+import { safeLink } from './store.js';
 
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -160,4 +161,18 @@ export async function confirmDialog({ title, body, confirmText = 'Delete', dange
         onclick: () => close(true),
       }, confirmText))
   )) === true;
+}
+
+/**
+ * The 🌐 button that opens an entry's link in a new tab, or null when there is
+ * no link. The address is checked again here, so a stored value that is not
+ * http(s) can never become a clickable href.
+ */
+export function linkButton(link) {
+  const href = safeLink(link);
+  if (!href) return null;
+  return el('a', {
+    class: 'btn icon link', href, target: '_blank', rel: 'noopener noreferrer',
+    title: href, 'aria-label': `Open ${href}`,
+  }, '🌐');
 }

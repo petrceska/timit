@@ -1,5 +1,5 @@
 import { Store } from '../../lib/store.js';
-import { el, toast, confirmDialog } from '../../lib/ui.js';
+import { el, toast, confirmDialog, linkButton } from '../../lib/ui.js';
 import { openEntryEditor } from '../../lib/entry-editor.js';
 import { RangeControl } from '../../lib/range.js';
 import { toCSV, downloadText } from '../../lib/csv.js';
@@ -71,7 +71,7 @@ export function createEntriesView(root, app) {
       if (projectFilter !== 'all' && projectFilter !== 'none' && e.projectId !== projectFilter) return false;
       if (search) {
         const p = e.projectId ? projects.get(e.projectId) : null;
-        const hay = `${e.description || ''} ${p ? p.name : ''} ${(e.tags || []).join(' ')}`.toLowerCase();
+        const hay = `${e.description || ''} ${p ? p.name : ''} ${(e.tags || []).join(' ')} ${e.link || ''}`.toLowerCase();
         if (!hay.includes(search)) return false;
       }
       return true;
@@ -176,7 +176,7 @@ export function createEntriesView(root, app) {
       title: 'Click to edit',
       onclick: (ev) => {
         // The checkbox and the action buttons keep their own behaviour.
-        if (ev.target.closest('button, input, .picker')) return;
+        if (ev.target.closest('a, button, input, .picker')) return;
         editEntry(e);
       },
     },
@@ -192,6 +192,7 @@ export function createEntriesView(root, app) {
         text: e.description || 'No description',
         title: e.description || '',
       }),
+      linkButton(e.link),
       (e.tags || []).length ? el('span', { class: 'badge-billable', text: e.tags.join(', ') }) : null,
       e.billable ? el('span', { class: 'badge-billable' }, '$') : null,
       el('span', { class: 'proj' },
@@ -204,7 +205,7 @@ export function createEntriesView(root, app) {
         el('button', {
           class: 'btn icon', title: 'Start again',
           onclick: async () => {
-            await Store.startTimer({ description: e.description, projectId: e.projectId });
+            await Store.startTimer({ description: e.description, projectId: e.projectId, link: e.link });
             app.refreshAll();
           },
         }, '▶'),

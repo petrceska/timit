@@ -22,7 +22,7 @@ export function formatHuman(ms) {
   return `${s}s`;
 }
 
-/** 3725000 -> "1.03" (Clockify's decimal duration column) */
+/** 3725000 -> "1.03" (decimal duration column) */
 export function formatDecimalHours(ms) {
   return (ms / 3600000).toFixed(2);
 }
