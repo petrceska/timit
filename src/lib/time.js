@@ -75,9 +75,10 @@ export function fromDayKey(key) {
   return new Date(y, m - 1, d);
 }
 
+/** Local HH:MM:SS — the value format of <input type="time" step="1">. */
 export function timeInput(d) {
   const x = new Date(d);
-  return `${pad(x.getHours())}:${pad(x.getMinutes())}`;
+  return `${pad(x.getHours())}:${pad(x.getMinutes())}:${pad(x.getSeconds())}`;
 }
 
 /** Combines a "YYYY-MM-DD" and a "HH:MM[:SS]" into a local Date. */

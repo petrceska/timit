@@ -4,6 +4,8 @@ import { openEntryEditor } from '../lib/entry-editor.js';
 import { el, toast } from '../lib/ui.js';
 import { flushSync, syncAll } from '../lib/sync.js';
 import { readActiveTab, suggestTasks } from '../lib/context.js';
+import { attachSuggest } from '../lib/suggest.js';
+import { descriptionRows } from '../lib/recent.js';
 import {
   formatClock, formatHuman, durationOf, friendlyDate, clockTime,
   startOfDay, startOfWeek,
@@ -32,6 +34,9 @@ let ticker = null;
 // those briefly so the UI doesn't re-render under the user's cursor.
 let mutedUntil = 0;
 const mute = () => { mutedUntil = Date.now() + 500; };
+// True once the user typed in the description box. Until then the box shows
+// what is stored; the box is focused from the start, so focus can't tell us.
+let descEdited = false;
 
 function openDashboard(hash = '') {
   chrome.tabs.create({ url: chrome.runtime.getURL('src/dashboard/dashboard.html' + hash) });
@@ -49,7 +54,7 @@ async function refresh() {
     toggleBtn.textContent = 'Stop';
     toggleBtn.classList.remove('primary');
     toggleBtn.classList.add('stop');
-    if (document.activeElement !== descInput) descInput.value = running.description || '';
+    if (!descEdited) descInput.value = running.description || '';
     picker.setValue(running.projectId);
     startTicking();
   } else {
@@ -215,6 +220,7 @@ toggleBtn.addEventListener('click', async () => {
     const stopped = await Store.stopTimer();
     toast(stopped ? `Saved ${formatHuman(stopped.end - stopped.start)}` : 'Entry discarded (too short)');
     descInput.value = '';
+    descEdited = false;
     picker.setValue(null);
     // Write the project's file before this popup can be dismissed.
     await flushSync();
@@ -228,7 +234,14 @@ toggleBtn.addEventListener('click', async () => {
   await refresh();
 });
 
+// Attached before the handlers below, so choosing a recent description with
+// Enter does not also start or stop the timer.
+attachSuggest(descInput, {
+  source: (value) => descriptionRows(allEntries, projects, value),
+  onPick: (row) => applySuggestion({ description: row.label, projectId: row.projectId }),
+});
 descInput.addEventListener('input', () => {
+  descEdited = true;
   toggleSuggestions();
   if (running) { mute(); Store.updateEntry(running.id, { description: descInput.value.trim() }); }
 });

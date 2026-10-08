@@ -153,11 +153,14 @@ export class ProjectPicker {
       this._renderList();
       this.list.querySelector('.picker-row.active')?.scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Enter') {
+      // Stop here so a surrounding dialog does not treat this as "save".
       e.preventDefault();
+      e.stopPropagation();
       const row = this.rows[this.highlight];
       if (row) this._choose(row);
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      e.stopPropagation();
       this.close();
       this.btn.focus();
     }

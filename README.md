@@ -208,7 +208,7 @@ stays.
 No framework, no dependencies — plain Node:
 
 ```bash
-node test/merge.test.mjs && node test/injection.test.mjs && node test/context.test.mjs
+node test/merge.test.mjs && node test/injection.test.mjs && node test/context.test.mjs && node test/editor.test.mjs
 ```
 
 - **`merge.test.mjs`** (19) pins the sync decision procedure: what counts as
@@ -217,6 +217,14 @@ node test/merge.test.mjs && node test/injection.test.mjs && node test/context.te
   PRs, MRs, tickets, branches, files, plain titles — which project gets picked and
   in what order, and that `readPage` still works once serialised the way
   `chrome.scripting` ships it.
+- **`editor.test.mjs`** (38) fills in the add / edit entry dialog the way a
+  person does — typing, pressing keys, clicking — and checks what gets stored:
+  seconds survive save and reopen, a typed duration moves the end, Enter and
+  Escape in the project picker stay in the picker, and Enter elsewhere saves.
+  It also pins the suggestions for descriptions and tags: which recent values
+  are offered, and that choosing one never saves the entry by accident.
+  It runs on a small DOM stand-in (`test/helpers/dom.mjs`), not a real browser,
+  so it checks behaviour, not layout.
 - **`injection.test.mjs`** (26) covers input TimIt doesn't control — typed
   descriptions, imported CSVs, JSON backups, sync files edited by hand or pulled
   from git, web pages read for suggestions — and asserts none of it can escape
@@ -284,10 +292,14 @@ src/lib/
   fsdb.js              IndexedDB store for file handles & permissions
   range.js             date-range control
   entry-editor.js      add/edit entry dialog
+  suggest.js           suggestion list under a text input
+  recent.js            recent descriptions and tags to suggest
   ui.js                el(), modal(), toast()
   theme.css            design tokens, light + dark
 test/merge.test.mjs    sync merge rules
 test/injection.test.mjs  injection regressions (CSV, DOM, storage, manifest)
+test/editor.test.mjs   entry dialog, project picker, time helpers
+test/helpers/dom.mjs   small DOM stand-in for the editor tests
 ```
 
 No build step, no dependencies — the source is what runs.

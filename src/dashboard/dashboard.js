@@ -8,6 +8,8 @@ import { createReportsView } from './views/reports.js';
 import { createProjectsView } from './views/projects.js';
 import { createDataView } from './views/data.js';
 import { scheduleSync, syncAll } from '../lib/sync.js';
+import { attachSuggest } from '../lib/suggest.js';
+import { descriptionRows } from '../lib/recent.js';
 
 const $ = (sel) => document.querySelector(sel);
 const descInput = $('#description');
@@ -106,6 +108,20 @@ toggleBtn.addEventListener('click', async () => {
     });
   }
   refreshAll();
+});
+// Attached before the handlers below, so choosing a recent description with
+// Enter does not also start or stop the timer.
+attachSuggest(descInput, {
+  source: async (value) =>
+    descriptionRows(await Store.getEntries(), await Store.getProjectMap(), value),
+  onPick: async (row) => {
+    descInput.value = row.label;
+    if (row.projectId && !picker.getValue()) await picker.setValue(row.projectId);
+    if (running) {
+      mute();
+      Store.updateEntry(running.id, { description: row.label, projectId: picker.getValue() });
+    }
+  },
 });
 descInput.addEventListener('input', () => {
   if (running) { mute(); Store.updateEntry(running.id, { description: descInput.value.trim() }); }

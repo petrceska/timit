@@ -8,6 +8,8 @@
 import { el, modal } from './ui.js';
 import { ProjectPicker } from './picker.js';
 import { Store } from './store.js';
+import { attachSuggest } from './suggest.js';
+import { descriptionRows, recentTags, tagToken, applyTag } from './recent.js';
 import {
   dayKey, timeInput, combineDateTime, formatClock, parseDuration,
 } from './time.js';
@@ -138,6 +140,21 @@ export function openEntryEditor(entry = null) {
 
     const picker = new ProjectPicker(pickerHost, {});
     picker.refresh().then(() => picker.setValue(entry?.projectId || null));
+
+    // Suggest what was typed in recent entries. Read once, when the dialog opens.
+    const recent = Promise.all([Store.getEntries(), Store.getProjectMap()]);
+    attachSuggest(desc, {
+      source: async (value) => descriptionRows(...(await recent), value),
+      onPick: (row) => {
+        desc.value = row.label;
+        if (row.projectId && !picker.getValue()) picker.setValue(row.projectId);
+      },
+    });
+    attachSuggest(tagsIn, {
+      token: tagToken,
+      source: async (value) => recentTags((await recent)[0], value).map((tag) => ({ label: tag })),
+      onPick: (row) => { tagsIn.value = applyTag(tagsIn.value, row.label); },
+    });
     content.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') {
         e.preventDefault();
